@@ -1,8 +1,8 @@
+import bisect
 from pathlib import Path
 from typing import List
 
 from constants import INPUTS_DIR, UTF_8
-
 
 INPUT_PATH = Path(INPUTS_DIR) / "day-01.txt"
 
@@ -21,8 +21,7 @@ def main(lines: List[str], top_k: int = 1) -> int:
     # get top k
     tops = []
     for count in elf_counts:
-        tops.append(count)
-        tops.sort(reverse=True)
+        bisect.insort(tops, count, key=lambda x: -x)  # insertion that maintains descending order
         if len(tops) > top_k:
             del tops[-1]
     return sum(tops)
