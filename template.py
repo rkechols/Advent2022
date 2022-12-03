@@ -13,6 +13,6 @@ def main(lines: List[str]):
 
 if __name__ == "__main__":
     with open(INPUT_PATH, "r", encoding=UTF_8) as f:
-        lines_ = f.readlines()
+        lines_ = [line_.strip() for line_ in f.readlines()]
     ans = main(lines_)
     print(ans)
