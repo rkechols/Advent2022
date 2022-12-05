@@ -22,7 +22,11 @@ def parse(
         loc = match.start()
         this_col = []
         for i in range(len(start_config) - 2, -1, -1):
-            sym = start_config[i][loc]
+            line = start_config[i]
+            try:  # in case line-final spaces get trimmed
+                sym = line[loc]
+            except IndexError:
+                break
             if sym.isspace():
                 break
             this_col.append(sym)
