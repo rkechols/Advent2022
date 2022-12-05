@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, cast
 
 from constants import INPUTS_DIR, UTF_8
 
@@ -106,7 +106,13 @@ def main2(lines: List[Tuple[str, str]]) -> int:
 if __name__ == "__main__":
     with open(INPUT_PATH, "r", encoding=UTF_8) as f:
         lines_ = f.readlines()
-    lines_ = [line_.strip().split() for line_ in lines_]
+    lines_ = [
+        cast(
+            Tuple[str, str],
+            tuple(line_.strip().split())
+        )
+        for line_ in lines_
+    ]
     ans = main1(lines_)
     print("part 1:", ans)
     ans = main2(lines_)
