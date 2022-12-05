@@ -17,7 +17,6 @@ def priority(s: str) -> int:
 def main1(lines: List[str]) -> int:
     total = 0
     for line in lines:
-        line = line.strip()
         half = len(line) // 2
         left = line[:half]
         right = line[half:]
@@ -29,7 +28,7 @@ def main1(lines: List[str]) -> int:
 def main2(lines: List[str]) -> int:
     total = 0
     for i in range(0, len(lines), 3):
-        group = [line.strip() for line in lines[i:(i + 3)]]
+        group = lines[i:(i + 3)]
         overlap: str = next(iter(set(group[0]) & set(group[1]) & set(group[2])))
         total += priority(overlap)
     return total
@@ -37,7 +36,7 @@ def main2(lines: List[str]) -> int:
 
 if __name__ == "__main__":
     with open(INPUT_PATH, "r", encoding=UTF_8) as f:
-        lines_ = f.readlines()
+        lines_ = [line_.strip() for line_ in f.readlines()]
     ans = main1(lines_)
     print("part 1:", ans)
     ans = main2(lines_)
