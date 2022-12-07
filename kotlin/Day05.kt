@@ -1,12 +1,7 @@
-data class ParsedInput(
-    val cols: Map<Int, List<Char>>,
-    val instructions: List<Triple<Int, Int, Int>>,
-)
-
 val digit_regex = Regex("\\d+")
 val instruction_regex = Regex("move (\\d+) from (\\d+) to (\\d+)")
 
-fun parse(input: String): ParsedInput {
+fun parse(input: String): Pair<Map<Int, List<Char>>, List<Triple<Int, Int, Int>>> {
     val blocks = input.split("\n\n")
     // top chunk
     val start_config = blocks[0].split("\n")
@@ -38,10 +33,7 @@ fun parse(input: String): ParsedInput {
         val match_vals = match.groupValues.drop(1).map{ it.toInt() }
         instructions.add(Triple(match_vals[0], match_vals[1], match_vals[2]))
     }
-    return ParsedInput(
-        cols=cols,
-        instructions=instructions,
-    )
+    return Pair(cols, instructions)
 }
 
 
