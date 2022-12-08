@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-from typing import List, Optional, Tuple, Dict
+from typing import Callable, List, Optional, Tuple, Dict
 
 from constants import INPUTS_DIR, UTF_8
 
@@ -14,13 +14,13 @@ FILE_RE = re.compile(r"(\d+) (.*)")
 
 
 TOTAL = 70000000
-NEED = 30000000
+TOTAL_NEEDED = 30000000
 
 
 class Dir:
     def __init__(self, name: str):
         self.name = name
-        self.files: List[Tuple[int, str]] = []
+        self.files: Dict[str, int] = {}
         self.dirs: Dict[str, 'Dir'] = {}
         self._size: Optional[int] = None
 
@@ -29,18 +29,20 @@ class Dir:
         self._size = None
 
     def add_file(self, file: Tuple[int, str]):
-        self.files.append(file)
+        self.files[file[1]] = file[0]
         self._size = None
 
     def calc_size(self) -> int:
-        size = sum(file[0] for file in self.files)
+        size = sum(self.files.values())
         for subdir in self.dirs.values():
             size += subdir.calc_size()
         self._size = size
         return self._size
 
     @property
-    def size(self) -> Optional[int]:
+    def size(self) -> int:
+        if self._size is None:
+            raise AttributeError("property `size` has not been calculated yet. Use `.calc_size()` to calculate it")
         return self._size
 
 
@@ -74,11 +76,14 @@ def get_cur_dir(root: Dir, path: List[str]) -> Dir:
     return cur
 
 
-def get_small_dirs(cur: Dir, results: List[Dir]):
-    if cur.size <= THRESHOLD:
+def select_dirs(cur: Dir, results: List[Dir] = None, *, selector: Callable[[Dir], bool]) -> List[Dir]:
+    if results is None:
+        results = []
+    if selector(cur):
         results.append(cur)
     for subdir in cur.dirs.values():
-        get_small_dirs(subdir, results)
+        select_dirs(subdir, results, selector=selector)
+    return results
 
 
 def main1(lines: List[str]) -> Tuple[int, Dir]:
@@ -101,7 +106,7 @@ def main1(lines: List[str]) -> Tuple[int, Dir]:
                 if (result := try_dir(lines[i])) is not None:
                     cur_dir.add_dir(result)
                 elif (result := try_file(lines[i])) is not None:
-                    cur_dir.files.append(result)
+                    cur_dir.add_file(result)
                 else:
                     i -= 1  # so the next +1 goes to the line we just tried
                     break
@@ -112,26 +117,17 @@ def main1(lines: List[str]) -> Tuple[int, Dir]:
     # recursively find sizes
     root.calc_size()
     # find small dirs
-    results = []
-    get_small_dirs(root, results)
-    return sum(d.size for d in results), root
-
-
-def get_big_dirs(cur: Dir, results: List[Dir], threshold: int):
-    if cur.size >= threshold:
-        results.append(cur)
-    for subdir in cur.dirs.values():
-        get_big_dirs(subdir, results, threshold)
+    small_dirs = select_dirs(root, selector=lambda d: d.size <= THRESHOLD)
+    return sum(d.size for d in small_dirs), root
 
 
 def main2(root: Dir) -> int:
     unused = TOTAL - root.size
-    to_delete = NEED - unused
-    if to_delete <= 0:
+    additional_needed = TOTAL_NEEDED - unused
+    if additional_needed <= 0:
         return 0
-    can_delete = []
-    get_big_dirs(root, can_delete, to_delete)
-    return min(d.size for d in can_delete)
+    dirs_big_enough = select_dirs(root, selector=lambda d: d.size >= additional_needed)
+    return min(d.size for d in dirs_big_enough)
 
 
 if __name__ == "__main__":
