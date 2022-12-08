@@ -10,7 +10,7 @@ INPUT_PATH = Path(INPUTS_DIR) / "day-07.txt"
 
 THRESHOLD = 100000
 CD_RE = re.compile(r"\$ cd (.+)")
-FILE_RE = re.compile(r"(\d+) (.*)")
+FILE_RE = re.compile(r"(\d+) (.+)")
 
 
 TOTAL = 70000000
