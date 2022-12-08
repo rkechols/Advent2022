@@ -15,4 +15,4 @@ if __name__ == "__main__":
     with open(INPUT_PATH, "r", encoding=UTF_8) as f:
         lines_ = [line_.strip() for line_ in f.readlines()]
     ans = main(lines_)
-    print(ans)
+    print("part 1:", ans)
