@@ -9,9 +9,9 @@ INPUT_PATH = Path(INPUTS_DIR) / "day-08.txt"
 # INPUT_PATH = Path(INPUTS_DIR) / "example.txt"
 
 
-def main1(grid: List[List[int]]) -> int:
-    n_rows = len(grid)
-    n_cols = len(grid[0])
+def main1(forest: List[List[int]]) -> int:
+    n_rows = len(forest)
+    n_cols = len(forest[0])
     visible = np.zeros((n_rows, n_cols), dtype=bool)
     visible[0, :] = True
     visible[-1, :] = True
@@ -19,29 +19,29 @@ def main1(grid: List[List[int]]) -> int:
     visible[:, -1] = True
     for row in range(n_rows):
         # from left
-        tallest = grid[row][0]
+        tallest = forest[row][0]
         for col in range(1, n_cols):
-            if grid[row][col] > tallest:
-                tallest = grid[row][col]
+            if forest[row][col] > tallest:
+                tallest = forest[row][col]
                 visible[row, col] = True
         # from right
-        tallest = grid[row][-1]
+        tallest = forest[row][-1]
         for col in range(n_cols - 2, -1, -1):
-            if grid[row][col] > tallest:
-                tallest = grid[row][col]
+            if forest[row][col] > tallest:
+                tallest = forest[row][col]
                 visible[row, col] = True
     for col in range(n_cols):
         # from up
-        tallest = grid[0][col]
+        tallest = forest[0][col]
         for row in range(1, n_rows):
-            if grid[row][col] > tallest:
-                tallest = grid[row][col]
+            if forest[row][col] > tallest:
+                tallest = forest[row][col]
                 visible[row, col] = True
         # from down
-        tallest = grid[-1][col]
+        tallest = forest[-1][col]
         for row in range(n_rows - 2, -1, -1):
-            if grid[row][col] > tallest:
-                tallest = grid[row][col]
+            if forest[row][col] > tallest:
+                tallest = forest[row][col]
                 visible[row, col] = True
     return visible.sum()
 
