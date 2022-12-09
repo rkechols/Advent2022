@@ -23,3 +23,5 @@ fun main() {
     val answer2 = solve(input, 14)
     println("part 2: $answer2")
 }
+
+main()

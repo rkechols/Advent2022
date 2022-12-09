@@ -37,3 +37,5 @@ fun main() {
     val answer2 = solve(lines, top_k=3)
     println("part 2: $answer2")
 }
+
+main()

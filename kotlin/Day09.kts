@@ -79,3 +79,5 @@ fun main() {
     val answer2 = solve(steps, n_knots=10)
     println("part 2: $answer2")
 }
+
+main()

@@ -169,3 +169,5 @@ fun main() {
     val answer2 = solve2(root)
     println("part 2: $answer2")
 }
+
+main()

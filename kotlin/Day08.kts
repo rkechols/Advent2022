@@ -124,3 +124,5 @@ fun main() {
     val answer2 = solve2(forest)
     println("part 2: $answer2")
 }
+
+main()

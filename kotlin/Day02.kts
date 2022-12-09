@@ -44,3 +44,5 @@ fun main() {
     val answer2 = solve2(lines)
     println("part 2: $answer2")
 }
+
+main()
