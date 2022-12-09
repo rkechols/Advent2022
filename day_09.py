@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Tuple, Set
+from typing import List, Tuple
 
 from constants import INPUTS_DIR, UTF_8
 
@@ -8,63 +8,55 @@ INPUT_PATH = Path(INPUTS_DIR) / "day-09.txt"
 
 
 class Knot:
+
+    DIRECTIONS = {
+        "R": (1, 0),
+        "L": (-1, 0),
+        "U": (0, 1),
+        "D": (0, -1),
+    }
+
     def __init__(self, x: int = 0, y: int = 0):
         self.x = x
         self.y = y
 
+    def shift(self, dir_tuple: Tuple[int, int]):
+        self.x += dir_tuple[0]
+        self.y += dir_tuple[1]
+
+    def follow(self, head: 'Knot'):
+        if head.x == self.x:
+            if head.y > self.y + 1:
+                self.y += 1
+            elif head.y < self.y - 1:
+                self.y -= 1
+        elif head.y == self.y:
+            if head.x > self.x + 1:
+                self.x += 1
+            elif head.x < self.x - 1:
+                self.x -= 1
+        else:  # diagonal
+            x_diff = head.x - self.x
+            y_diff = head.y - self.y
+            if abs(x_diff) > 1 or abs(y_diff) > 1:
+                x_step = x_diff // abs(x_diff)
+                y_step = y_diff // abs(y_diff)
+                self.shift((x_step, y_step))
+
     def to_tuple(self) -> Tuple[int, int]:
         return self.x, self.y
-
-
-def step_tail(head: Knot, tail: Knot):
-    if head.x == tail.x:
-        if head.y > tail.y + 1:
-            tail.y += 1
-        elif head.y < tail.y - 1:
-            tail.y -= 1
-    elif head.y == tail.y:
-        if head.x > tail.x + 1:
-            tail.x += 1
-        elif head.x < tail.x - 1:
-            tail.x -= 1
-    else:  # diagonal
-        h_diff = head.x - tail.x
-        v_diff = head.y - tail.y
-        if abs(h_diff) > 1 or abs(v_diff) > 1:
-            h_step = h_diff // abs(h_diff)
-            v_step = v_diff // abs(v_diff)
-            tail.x += h_step
-            tail.y += v_step
-
-
-def knots_follow(knots: List[Knot], tail_visited: Set[Tuple[int, int]]):
-    for i in range(len(knots) - 1):
-        step_tail(knots[i], knots[i + 1])
-    tail_visited.add(knots[-1].to_tuple())
 
 
 def main(steps: List[Tuple[str, int]], *, n_knots: int = 2) -> int:
     knots = [Knot() for _ in range(n_knots)]
     tail_visited = {knots[-1].to_tuple()}
     for direction, step_count in steps:
-        if direction == "R":
-            for _ in range(step_count):
-                knots[0].x += 1
-                knots_follow(knots, tail_visited)
-        elif direction == "L":
-            for _ in range(step_count):
-                knots[0].x -= 1
-                knots_follow(knots, tail_visited)
-        elif direction == "U":
-            for _ in range(step_count):
-                knots[0].y += 1
-                knots_follow(knots, tail_visited)
-        elif direction == "D":
-            for _ in range(step_count):
-                knots[0].y -= 1
-                knots_follow(knots, tail_visited)
-        else:
-            ValueError(f"bad direction: {direction}")
+        head_shift = Knot.DIRECTIONS[direction]
+        for _ in range(step_count):
+            knots[0].shift(head_shift)
+            for i in range(1, n_knots):
+                knots[i].follow(knots[i - 1])
+            tail_visited.add(knots[-1].to_tuple())
     return len(tail_visited)
 
 
