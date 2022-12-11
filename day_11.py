@@ -1,10 +1,9 @@
 import copy
-from functools import reduce
-from tqdm import tqdm
 import re
-from pathlib import Path
 from collections import deque
-from typing import List, Tuple, Type, Union
+from functools import reduce
+from pathlib import Path
+from typing import Callable, List, Tuple
 
 from constants import INPUTS_DIR, UTF_8
 
@@ -13,45 +12,69 @@ INPUT_PATH = Path(INPUTS_DIR) / "day-11.txt"
 
 
 MONKEY_RE = re.compile(r"Monkey (\d+):")
+OPERATION_RE = re.compile(r"new = old ([+*]) (.+)")
 DIVISION_RE = re.compile(r"Test: divisible by (\d+)")
 TRUE_RE = re.compile(r"If true: throw to monkey (\d+)")
 FALSE_RE = re.compile(r"If false: throw to monkey (\d+)")
-OPERATION_RE = re.compile(r"new = old ([+*]) (.+)")
 
 
-class Monkey:
-    def __init__(self, num: int, items: List[int], operation: Tuple[str, str], div_test: int, true_dest: int, false_dest: int):
-        self.num = num
-        self.items = deque(items)
-        self.operation = operation
-        self.div_test = div_test
-        self.true_dest = true_dest
-        self.false_dest = false_dest
-
-    def __repr__(self):
-        return f"Monkey(num_items={len(self.items)})"
+OperationSpec = Tuple[str, str]
 
 
-def do_operation(old: int, operation: Tuple[str, str]) -> int:
-    op, num = operation
-    if num == "old":
-        num = old
-    else:
-        num = int(num)
+def parse_operation(operation_spec: OperationSpec) -> Callable[[int], int]:
+    op, num = operation_spec
     if op == "+":
-        return old + num
+        if num == "old":
+            return lambda old: old + old
+        else:
+            return lambda old: old + int(num)
     elif op == "*":
-        return old * num
+        if num == "old":
+            return lambda old: old * old
+        else:
+            return lambda old: old * int(num)
     else:
         raise ValueError(f"Bad operator: {op}")
 
 
+class Monkey:
+    def __init__(self, items: List[int], operation_spec: OperationSpec, div_test: int, true_dest: int, false_dest: int):
+        self._items = deque(items)
+        self._operation = parse_operation(operation_spec)
+        self._div_test = div_test
+        self._true_dest = true_dest
+        self._false_dest = false_dest
+
+    @property
+    def n_items(self) -> int:
+        return len(self._items)
+
+    @property
+    def divisor(self) -> int:
+        return self._div_test
+
+    def pop_item(self) -> int:
+        return self._items.popleft()
+
+    def catch_item(self, item: int):
+        self._items.append(item)
+
+    def do_operation(self, item: int) -> int:
+        return self._operation(item)
+
+    def get_dest(self, item: int) -> int:
+        if item % self._div_test == 0:
+            return self._true_dest
+        else:
+            return self._false_dest
+
+
 def parse(data: str) -> List:
-    monkeys = data.split("\n\n")
+    monkey_blocks = data.split("\n\n")
     to_return = []
     next_i = 0
-    for monkey in monkeys:
-        monkey_lines = monkey.split("\n")
+    for monkey_block in monkey_blocks:
+        monkey_lines = monkey_block.split("\n")
         num = int(MONKEY_RE.fullmatch(monkey_lines[0].strip()).group(1))
         if num != next_i:
             raise ValueError(f"wrong order of monkeys! expected {next_i} but got {num}")
@@ -61,52 +84,29 @@ def parse(data: str) -> List:
         division_test = int(DIVISION_RE.fullmatch(monkey_lines[3].strip()).group(1))
         true_dest = int(TRUE_RE.fullmatch(monkey_lines[4].strip()).group(1))
         false_dest = int(FALSE_RE.fullmatch(monkey_lines[5].strip()).group(1))
-        m = Monkey(
-            num,
+        monkey = Monkey(
             starting_items,
             (op, op_num),
             division_test,
             true_dest,
             false_dest,
         )
-        to_return.append(m)
+        to_return.append(monkey)
     return to_return
 
 
-def main(monkeys: List[Monkey], n_rounds: int = 20) -> int:
+def main(monkeys: List[Monkey], *, n_rounds: int = 20, reduction: Callable[[int], int]) -> int:
     monkeys = copy.deepcopy(monkeys)
     inspect_counts = [0 for _ in range(len(monkeys))]
-    for _ in tqdm(range(n_rounds)):  # round
+    for _ in range(n_rounds):  # round
         for i, monkey in enumerate(monkeys):
-            while len(monkey.items) > 0:
-                item = monkey.items.popleft()
-                item = do_operation(item, monkey.operation)
+            while monkey.n_items > 0:
+                item = monkey.pop_item()
+                item = monkey.do_operation(item)
                 inspect_counts[i] += 1
-                item = item // 3
-                if item % monkey.div_test == 0:
-                    dest = monkey.true_dest
-                else:
-                    dest = monkey.false_dest
-                monkeys[dest].items.append(item)
-    inspect_sorted = sorted(inspect_counts, reverse=True)
-    a, b = inspect_sorted[:2]
-    return a * b
-
-
-def main2(monkeys: List[Monkey], n_rounds: int = 20) -> int:
-    monkeys = copy.deepcopy(monkeys)
-    inspect_counts = [0 for _ in range(len(monkeys))]
-    for _ in tqdm(range(n_rounds)):  # round
-        for i, monkey in enumerate(monkeys):
-            while len(monkey.items) > 0:
-                item = monkey.items.popleft()
-                item = do_operation(item, monkey.operation)
-                inspect_counts[i] += 1
-                if item % monkey.div_test == 0:
-                    dest = monkey.true_dest
-                else:
-                    dest = monkey.false_dest
-                monkeys[dest].items.append(item)
+                item = reduction(item)
+                dest = monkey.get_dest(item)
+                monkeys[dest].catch_item(item)
     inspect_sorted = sorted(inspect_counts, reverse=True)
     a, b = inspect_sorted[:2]
     return a * b
@@ -115,8 +115,9 @@ def main2(monkeys: List[Monkey], n_rounds: int = 20) -> int:
 if __name__ == "__main__":
     with open(INPUT_PATH, "r", encoding=UTF_8) as f:
         raw = f.read().strip()
-    data_ = parse(raw)
-    ans = main(data_, n_rounds=20)
+    monkeys_ = parse(raw)
+    ans = main(monkeys_, n_rounds=20, reduction=lambda x: x // 3)
     print("part 1:", ans)
-    ans = main2(data_, n_rounds=10000)
+    mod_n = reduce((lambda x, y: x * y), (m.divisor for m in monkeys_))
+    ans = main(monkeys_, n_rounds=10000, reduction=lambda x: x % mod_n)
     print("part 2:", ans)
