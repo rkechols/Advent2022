@@ -69,7 +69,7 @@ class Monkey:
             return self._false_dest
 
 
-def parse(data: str) -> List:
+def parse(data: str) -> List[Monkey]:
     monkey_blocks = data.split("\n\n")
     to_return = []
     next_i = 0
