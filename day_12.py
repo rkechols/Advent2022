@@ -42,6 +42,10 @@ def parse(lines: List[str]) -> Tuple[np.ndarray, Tuple[int, int], Tuple[int, int
     return grid, start, end
 
 
+def add_tups(t1: Tuple[int, int], t2: Tuple[int, int]) -> Tuple[int, int]:
+    return t1[0] + t2[0], t1[1] + t2[1]
+
+
 def is_in_bounds(pos: Tuple[int, int], shape: Tuple[int, int]) -> bool:
     return (0 <= pos[0] < shape[0]) and (0 <= pos[1] < shape[1])
 
@@ -53,16 +57,18 @@ def main(
         step_check: StepCheck,
         end_check: EndCheck,
 ) -> int:
+    if end_check(start):
+        return 0
     visited = np.zeros_like(grid, dtype=bool)
     q = [start]
     steps = 0
     while True:
         new_q = []
         steps += 1
-        for cur in q:
-            this_level = grid[cur]
+        for cur_pos in q:
+            this_level = grid[cur_pos]
             for shift in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
-                next_pos = (cur[0] + shift[0], cur[1] + shift[1])
+                next_pos = add_tups(cur_pos, shift)
                 if not is_in_bounds(next_pos, grid.shape) or visited[next_pos]:
                     continue
                 next_level = grid[next_pos]
