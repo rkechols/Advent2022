@@ -1,17 +1,20 @@
+import copy
 import json
 from pathlib import Path
 from typing import Any, List, Union, Optional
 
 from constants import INPUTS_DIR, UTF_8
 
+Packet = List[Union[int, List]]
+
 INPUT_PATH = Path(INPUTS_DIR) / "day-13.txt"
 # INPUT_PATH = Path(INPUTS_DIR) / "example.txt"
 
+MARKER_A = [[2]]
+MARKER_B = [[6]]
 
-Packet = Union[int, List]
 
-
-def compare(left: Union[int, List], right: Union[int, List]) -> Optional[bool]:
+def _compare(left: Union[int, List], right: Union[int, List]) -> Optional[bool]:
     if isinstance(left, int):
         if isinstance(right, int):
             if left < right:
@@ -21,17 +24,17 @@ def compare(left: Union[int, List], right: Union[int, List]) -> Optional[bool]:
             else:
                 return None
         elif isinstance(right, list):
-            return compare([left], right)
+            return _compare([left], right)
         else:
             raise TypeError(f"unexpected type of right: {type(right)}")
     elif isinstance(left, list):
         if isinstance(right, int):
-            return compare(left, [right])
+            return _compare(left, [right])
         elif isinstance(right, list):
             n_left = len(left)
             n_right = len(right)
             for i in range(min(n_left, n_right)):
-                in_order = compare(left[i], right[i])
+                in_order = _compare(left[i], right[i])
                 if in_order is not None:
                     return in_order
             if n_left < n_right:
@@ -46,18 +49,21 @@ def compare(left: Union[int, List], right: Union[int, List]) -> Optional[bool]:
         raise TypeError(f"unexpected type of left: {type(left)}")
 
 
-def main1(lines: List[str]) -> int:
-    good_sum = 0
-    n_pairs = (len(lines) + 1) // 3
-    for i in range(n_pairs):
-        left = json.loads(lines[3 * i])
-        right = json.loads(lines[(3 * i) + 1])
-        in_order = compare(left, right)
-        if in_order is None:
-            raise ValueError(None)
-        if in_order:
-            good_sum += (i + 1)
-    return good_sum
+def compare(left: Packet, right: Packet) -> bool:
+    to_return = _compare(left, right)
+    if to_return is None:
+        raise ValueError("could not determine relative order")
+    return to_return
+
+
+def main1(packets: List[Packet]) -> int:
+    pair_index_sum = 0
+    for i in range(0, len(packets), 2):
+        left = packets[i]
+        right = packets[i + 1]
+        if compare(left, right):
+            pair_index_sum += ((i // 2) + 1)
+    return pair_index_sum
 
 
 # QUICKSORT - start
@@ -130,10 +136,7 @@ def _partition(data: List[Packet], start: int, end: int) -> int:
     elif section_len == 2:
         index1 = start
         index2 = start + 1
-        in_order = compare(data[index1], data[index2])
-        if in_order is None:
-            raise ValueError(None)
-        if not in_order:
+        if not compare(data[index1], data[index2]):
             _swap(data, index1, index2)
             return index1
         else:  # no change needed
@@ -145,10 +148,7 @@ def _partition(data: List[Packet], start: int, end: int) -> int:
     next_high_index = end - 2  # keeps track of where to put the next "high" we find
     i = start
     while i <= next_high_index:  # no need to re-look through all of our high numbers
-        in_order = compare(data[i], pivot_value)
-        if in_order is None:
-            raise ValueError(None)
-        if not in_order:
+        if not compare(data[i], pivot_value):
             # swap this to the end (just before all the other highs we've put there)
             _swap(data, next_high_index, i)
             next_high_index -= 1
@@ -203,10 +203,7 @@ def _quick_sort_recursive(data: List[Packet], start: int, end: int):
     elif section_len == 2:  # just do a singular check, swap if needed
         index1 = start
         index2 = start + 1
-        out = compare(data[index1], data[index2])
-        if out is None:
-            raise ValueError(None)
-        if not out:
+        if not compare(data[index1], data[index2]):
             _swap(data, index1, index2)
         # else:  # no change needed
         return
@@ -235,19 +232,20 @@ def quick_sort(data: List[Packet]):
 # QUICKSORT - end
 
 
-def main2(lines: List[str]) -> int:
-    lines = [json.loads(lines[i]) for i in range(len(lines)) if (i % 3 != 2)]
-    lines += [[[2]], [[6]]]
-    quick_sort(lines)
-    a = 1 + lines.index([[2]])
-    b = 1 + lines.index([[6]])
+def main2(packets: List[Packet]) -> int:
+    packets = copy.deepcopy(packets)
+    packets += [MARKER_A, MARKER_B]
+    quick_sort(packets)
+    a = 1 + packets.index(MARKER_A)
+    b = 1 + packets.index(MARKER_B)
     return a * b
 
 
 if __name__ == "__main__":
     with open(INPUT_PATH, "r", encoding=UTF_8) as f:
         lines_ = [line_.strip() for line_ in f.readlines()]
-    ans = main1(lines_)
+    packets_ = [json.loads(line_) for line_ in lines_ if line_ != ""]
+    ans = main1(packets_)
     print("part 1:", ans)
-    ans = main2(lines_)
+    ans = main2(packets_)
     print("part 2:", ans)
