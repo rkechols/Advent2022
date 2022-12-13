@@ -1,7 +1,7 @@
 import copy
 import json
 from pathlib import Path
-from typing import Any, List, Union, Optional
+from typing import Any, Callable, List, TypeVar, Union, Optional
 
 from constants import INPUTS_DIR, UTF_8
 
@@ -14,7 +14,7 @@ MARKER_A = [[2]]
 MARKER_B = [[6]]
 
 
-def _compare(left: Union[int, List], right: Union[int, List]) -> Optional[bool]:
+def _compare_sub_packets(left: Union[int, List], right: Union[int, List]) -> Optional[bool]:
     if isinstance(left, int):
         if isinstance(right, int):
             if left < right:
@@ -24,17 +24,17 @@ def _compare(left: Union[int, List], right: Union[int, List]) -> Optional[bool]:
             else:
                 return None
         elif isinstance(right, list):
-            return _compare([left], right)
+            return _compare_sub_packets([left], right)
         else:
             raise TypeError(f"unexpected type of right: {type(right)}")
     elif isinstance(left, list):
         if isinstance(right, int):
-            return _compare(left, [right])
+            return _compare_sub_packets(left, [right])
         elif isinstance(right, list):
             n_left = len(left)
             n_right = len(right)
             for i in range(min(n_left, n_right)):
-                in_order = _compare(left[i], right[i])
+                in_order = _compare_sub_packets(left[i], right[i])
                 if in_order is not None:
                     return in_order
             if n_left < n_right:
@@ -49,8 +49,8 @@ def _compare(left: Union[int, List], right: Union[int, List]) -> Optional[bool]:
         raise TypeError(f"unexpected type of left: {type(left)}")
 
 
-def compare(left: Packet, right: Packet) -> bool:
-    to_return = _compare(left, right)
+def compare_packets(left: Packet, right: Packet) -> bool:
+    to_return = _compare_sub_packets(left, right)
     if to_return is None:
         raise ValueError("could not determine relative order")
     return to_return
@@ -61,12 +61,16 @@ def main1(packets: List[Packet]) -> int:
     for i in range(0, len(packets), 2):
         left = packets[i]
         right = packets[i + 1]
-        if compare(left, right):
+        if compare_packets(left, right):
             pair_index_sum += ((i // 2) + 1)
     return pair_index_sum
 
 
 # QUICKSORT - start
+
+
+T = TypeVar("T")
+Comparator = Callable[[T, T], bool]
 
 
 def _swap(data: List[Any], index1: int, index2: int):
@@ -94,7 +98,7 @@ def _swap(data: List[Any], index1: int, index2: int):
     data[index2] = temp
 
 
-def _partition(data: List[Packet], start: int, end: int) -> int:
+def _partition(data: List[T], start: int, end: int, comparator: Comparator) -> int:
     """
     Within the specified section of a list, sift values to be correctly above and
     below some pivot value (i.e. "partition" it). Return the index of that pivot.
@@ -102,12 +106,14 @@ def _partition(data: List[Packet], start: int, end: int) -> int:
 
     Parameters
     ----------
-    data: List[Packet]
+    data: List[T]
         the whole list of values
     start: int
         the index of the first element in the section being partitioned
     end: int
         the index that is 1 after the last element in the section being partitioned
+    comparator: Callable[[T, T], bool]
+        see docstring of function `quick_sort`
 
     Returns
     -------
@@ -136,7 +142,7 @@ def _partition(data: List[Packet], start: int, end: int) -> int:
     elif section_len == 2:
         index1 = start
         index2 = start + 1
-        if not compare(data[index1], data[index2]):
+        if not comparator(data[index1], data[index2]):
             _swap(data, index1, index2)
             return index1
         else:  # no change needed
@@ -148,7 +154,7 @@ def _partition(data: List[Packet], start: int, end: int) -> int:
     next_high_index = end - 2  # keeps track of where to put the next "high" we find
     i = start
     while i <= next_high_index:  # no need to re-look through all of our high numbers
-        if not compare(data[i], pivot_value):
+        if not comparator(data[i], pivot_value):  # wrong order
             # swap this to the end (just before all the other highs we've put there)
             _swap(data, next_high_index, i)
             next_high_index -= 1
@@ -162,20 +168,22 @@ def _partition(data: List[Packet], start: int, end: int) -> int:
     return pivot_index_final
 
 
-def _quick_sort_recursive(data: List[Packet], start: int, end: int):
+def _quick_sort_recursive(data: List[T], start: int, end: int, comparator: Comparator):
     """
     Perform quick sort in-place on a section of the list.
     (The whole list is passed with bounding indices to avoid unnecessary copying)
 
     Parameters
     ----------
-    data: List[Packet]
+    data: List[T]
         the whole list of values being sorted
     start: int
         the index of the first element in the section being sorted
     end: int
         the index that is 1 after the last element in the section being sorted
         (note that `data[start:end]` would return the section in question)
+    comparator: Callable[[T, T], bool]
+        see docstring of function `quick_sort`
 
     Returns
     -------
@@ -203,30 +211,38 @@ def _quick_sort_recursive(data: List[Packet], start: int, end: int):
     elif section_len == 2:  # just do a singular check, swap if needed
         index1 = start
         index2 = start + 1
-        if not compare(data[index1], data[index2]):
+        if not comparator(data[index1], data[index2]):
             _swap(data, index1, index2)
         # else:  # no change needed
         return
     # else:  # recursive case:
-    pivot_index = _partition(data, start, end)  # sift values to be below/above some "pivot"
-    _quick_sort_recursive(data, start, pivot_index)  # recursively sort below the pivot
-    _quick_sort_recursive(data, pivot_index + 1, end)  # recursively sort above the pivot
+    pivot_index = _partition(data, start, end, comparator)  # sift values to be below/above some "pivot"
+    _quick_sort_recursive(data, start, pivot_index, comparator)  # recursively sort below the pivot
+    _quick_sort_recursive(data, pivot_index + 1, end, comparator)  # recursively sort above the pivot
 
 
-def quick_sort(data: List[Packet]):
+def quick_sort(data: List[T], *, comparator: Comparator = (lambda a, b: a <= b)) -> List[T]:
     """
-    Sort the given list in-place using the "quick sort" algorithm.
+    Sort the given list of values in-place using the "quick sort" algorithm.
 
     Parameters
     ----------
-    data: List[Packet]
+    data: List[T]
         the list of values to be sorted
+    comparator: Callable[[T, T], bool]
+        function used to determine if a pair of values is correctly in order.
+        The function should return `True` if the values are given in the correct order (should be left as they are),
+        and should return `False` if the values are in the incorrect order and should be swapped.
 
     Returns
     -------
-    None
+    List[T]
+        `data`, the same list as was passed in.
+        Note that `data` is edited in-place by this function;
+        returning here is simply for chaining convenience.
     """
-    _quick_sort_recursive(data, 0, len(data))
+    _quick_sort_recursive(data, 0, len(data), comparator)
+    return data
 
 
 # QUICKSORT - end
@@ -235,7 +251,7 @@ def quick_sort(data: List[Packet]):
 def main2(packets: List[Packet]) -> int:
     packets = copy.deepcopy(packets)
     packets += [MARKER_A, MARKER_B]
-    quick_sort(packets)
+    quick_sort(packets, comparator=compare_packets)
     a = 1 + packets.index(MARKER_A)
     b = 1 + packets.index(MARKER_B)
     return a * b
