@@ -1,13 +1,13 @@
 import copy
 from pathlib import Path
-from typing import Dict, List, Literal, Tuple
+from typing import Dict, List, Literal, Optional, Tuple
 
 from constants import INPUTS_DIR, UTF_8
 
 INPUT_PATH = Path(INPUTS_DIR) / "day-14.txt"
 # INPUT_PATH = Path(INPUTS_DIR) / "example.txt"
 
-Cave = Dict[Tuple[int, int], str]
+Loc = Tuple[int, int]
 
 
 ROCK = "#"
@@ -26,8 +26,66 @@ def sign(a: int, b: int) -> Literal[1, -1]:
         raise ValueError("no sign of 0")
 
 
+class Cave:
+    def __init__(self):
+        self.data: Dict[Loc, str] = {}
+
+    def loc_is_free(self, loc: Loc) -> bool:
+        return self.data.get(loc, AIR) not in (ROCK, SAND)
+
+    def __getitem__(self, key: Loc) -> str:
+        return self.data[key]
+
+    def __setitem__(self, key: Loc, value: str):
+        self.data[key] = value
+
+    def draw(self):
+        min_x = min(x for x, _ in self.data.keys())
+        max_x = max(x for x, _ in self.data.keys())
+        min_y = min(y for _, y in self.data.keys())
+        max_y = max(y for _, y in self.data.keys())
+        n_rows = 1 + max_y - min_y
+        n_cols = 1 + max_x - min_x
+        canvas = [
+            [AIR for _ in range(n_cols)]
+            for _ in range(n_rows)
+        ]
+        for (x, y), val in self.data.items():
+            canvas[y - min_y][x - min_x] = val
+        for row in canvas:
+            print("".join(row))
+
+    def lowest_rock(self) -> int:
+        return max(
+            y
+            for (_, y), val in self.data.items()
+            if val == ROCK
+        )
+
+
+class Sand:
+    def __init__(self, loc: Loc):
+        self.x, self.y = loc
+
+    def fall(self, cave: Cave, floor: int = None) -> bool:
+        next_y = self.y + 1
+        if next_y == floor:
+            return False
+        if cave.loc_is_free(next_loc := (self.x, next_y)) \
+                or cave.loc_is_free(next_loc := (self.x - 1, next_y)) \
+                or cave.loc_is_free(next_loc := (self.x + 1, next_y)):
+            self.x, self.y = next_loc
+            return True
+        # can't go anywhere
+        return False
+
+    @property
+    def loc(self) -> Loc:
+        return self.x, self.y
+
+
 def parse(lines: List[str]) -> Cave:
-    cave: Cave = {}
+    cave = Cave()
     for line in lines:
         prev = None
         for point_str in line.split("->"):
@@ -48,70 +106,18 @@ def parse(lines: List[str]) -> Cave:
     return cave
 
 
-def draw(cave: Cave):
-    min_x = min(x for x, _ in cave.keys())
-    max_x = max(x for x, _ in cave.keys())
-    min_y = min(y for _, y in cave.keys())
-    max_y = max(y for _, y in cave.keys())
-    n_rows = 1 + max_y - min_y
-    n_cols = 1 + max_x - min_x
-    canvas = [
-        [AIR for _ in range(n_cols)]
-        for _ in range(n_rows)
-    ]
-    for (x, y), val in cave.items():
-        canvas[y - min_y][x - min_x] = val
-    for row in canvas:
-        print("".join(row))
-
-
-def main1(cave: Cave) -> int:
+def main(cave: Cave, *, floor_terminates) -> int:
     cave = copy.deepcopy(cave)
     count = 0
-    lowest = max(y for _, y in cave.keys())
-    while True:
-        cur = START
-        at_rest = False
-        while cur[1] <= lowest:
-            next_y = cur[1] + 1
-            if (next_ := (cur[0], next_y)) not in cave:
-                cur = next_
-            elif (next_ := (cur[0] - 1, next_y)) not in cave:
-                cur = next_
-            elif (next_ := (cur[0] + 1, next_y)) not in cave:
-                cur = next_
-            else:  # stops here
-                cave[cur] = SAND
-                at_rest = True
-                break
-        if at_rest:
-            count += 1
-        else:
-            break
-    return count
-
-
-def main2(cave: Cave) -> int:
-    cave = copy.deepcopy(cave)
-    count = 0
-    floor = max(y for _, y in cave.keys()) + 2
-    while cave.get(START, AIR) not in (ROCK, SAND):
-        cur = START
-        at_rest = False
-        while not at_rest:
-            next_y = cur[1] + 1
-            if next_y == floor:
-                at_rest = True
-            else:
-                if (next_ := (cur[0], next_y)) not in cave:
-                    cur = next_
-                elif (next_ := (cur[0] - 1, next_y)) not in cave:
-                    cur = next_
-                elif (next_ := (cur[0] + 1, next_y)) not in cave:
-                    cur = next_
-                else:  # stops here
-                    at_rest = True
-        cave[cur] = SAND
+    lowest = cave.lowest_rock()
+    floor = lowest + 2
+    while cave.loc_is_free(START):
+        cur = Sand(START)
+        while cur.fall(cave, floor):
+            if floor_terminates and cur.y > lowest:
+                # it went below lowest rock; next move would hit the floor
+                return count
+        cave[cur.loc] = SAND
         count += 1
     return count
 
@@ -119,9 +125,9 @@ def main2(cave: Cave) -> int:
 if __name__ == "__main__":
     with open(INPUT_PATH, "r", encoding=UTF_8) as f:
         lines_ = [line_.strip() for line_ in f.readlines()]
-    data_ = parse(lines_)
-    # draw(data_)
-    ans = main1(data_)
+    cave_ = parse(lines_)
+    cave_.draw()
+    ans = main(cave_, floor_terminates=True)
     print("part 1:", ans)
-    ans = main2(data_)
+    ans = main(cave_, floor_terminates=False)
     print("part 2:", ans)
