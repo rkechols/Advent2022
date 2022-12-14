@@ -1,11 +1,13 @@
 import copy
 from pathlib import Path
-from typing import List, Dict, Tuple
+from typing import Dict, List, Literal, Tuple
 
 from constants import INPUTS_DIR, UTF_8
 
 INPUT_PATH = Path(INPUTS_DIR) / "day-14.txt"
 # INPUT_PATH = Path(INPUTS_DIR) / "example.txt"
+
+Cave = Dict[Tuple[int, int], str]
 
 
 ROCK = "#"
@@ -15,17 +17,17 @@ AIR = "."
 START = (500, 0)
 
 
-def sign(a, b) -> int:
+def sign(a: int, b: int) -> Literal[1, -1]:
     if a < b:
         return 1
     elif a > b:
         return -1
-    else:
+    else:  # equal
         raise ValueError("no sign of 0")
 
 
-def parse(lines: List[str]) -> Dict[Tuple[int, int], str]:
-    data = {}
+def parse(lines: List[str]) -> Cave:
+    cave: Cave = {}
     for line in lines:
         prev = None
         for point_str in line.split("->"):
@@ -34,52 +36,52 @@ def parse(lines: List[str]) -> Dict[Tuple[int, int], str]:
                 if prev[0] == cur[0]:
                     pair = prev[1], cur[1]
                     for y in range(*pair, sign(*pair)):
-                        data[(prev[0], y)] = ROCK
+                        cave[(prev[0], y)] = ROCK
                 elif prev[1] == cur[1]:
                     pair = prev[0], cur[0]
                     for x in range(*pair, sign(*pair)):
-                        data[(x, prev[1])] = ROCK
+                        cave[(x, prev[1])] = ROCK
                 else:
                     raise ValueError(f"cannot draw line from {prev} to {cur}")
             prev = cur
-        data[prev] = ROCK
-    return data
+        cave[prev] = ROCK
+    return cave
 
 
-def draw(data: Dict[Tuple[int, int], str]):
-    min_x = min(x for x, _ in data.keys())
-    max_x = max(x for x, _ in data.keys())
-    min_y = min(y for _, y in data.keys())
-    max_y = max(y for _, y in data.keys())
+def draw(cave: Cave):
+    min_x = min(x for x, _ in cave.keys())
+    max_x = max(x for x, _ in cave.keys())
+    min_y = min(y for _, y in cave.keys())
+    max_y = max(y for _, y in cave.keys())
     n_rows = 1 + max_y - min_y
     n_cols = 1 + max_x - min_x
     canvas = [
         [AIR for _ in range(n_cols)]
         for _ in range(n_rows)
     ]
-    for (x, y), val in data.items():
+    for (x, y), val in cave.items():
         canvas[y - min_y][x - min_x] = val
     for row in canvas:
         print("".join(row))
 
 
-def main1(data: Dict[Tuple[int, int], str]) -> int:
-    data = copy.deepcopy(data)
+def main1(cave: Cave) -> int:
+    cave = copy.deepcopy(cave)
     count = 0
-    lowest = max(y for _, y in data.keys())
+    lowest = max(y for _, y in cave.keys())
     while True:
         cur = START
         at_rest = False
         while cur[1] <= lowest:
             next_y = cur[1] + 1
-            if (next_ := (cur[0], next_y)) not in data:
+            if (next_ := (cur[0], next_y)) not in cave:
                 cur = next_
-            elif (next_ := (cur[0] - 1, next_y)) not in data:
+            elif (next_ := (cur[0] - 1, next_y)) not in cave:
                 cur = next_
-            elif (next_ := (cur[0] + 1, next_y)) not in data:
+            elif (next_ := (cur[0] + 1, next_y)) not in cave:
                 cur = next_
             else:  # stops here
-                data[cur] = SAND
+                cave[cur] = SAND
                 at_rest = True
                 break
         if at_rest:
@@ -89,11 +91,11 @@ def main1(data: Dict[Tuple[int, int], str]) -> int:
     return count
 
 
-def main2(data: Dict[Tuple[int, int], str]) -> int:
-    data = copy.deepcopy(data)
+def main2(cave: Cave) -> int:
+    cave = copy.deepcopy(cave)
     count = 0
-    floor = max(y for _, y in data.keys()) + 2
-    while data.get(START, AIR) not in (ROCK, SAND):
+    floor = max(y for _, y in cave.keys()) + 2
+    while cave.get(START, AIR) not in (ROCK, SAND):
         cur = START
         at_rest = False
         while not at_rest:
@@ -101,15 +103,15 @@ def main2(data: Dict[Tuple[int, int], str]) -> int:
             if next_y == floor:
                 at_rest = True
             else:
-                if (next_ := (cur[0], next_y)) not in data:
+                if (next_ := (cur[0], next_y)) not in cave:
                     cur = next_
-                elif (next_ := (cur[0] - 1, next_y)) not in data:
+                elif (next_ := (cur[0] - 1, next_y)) not in cave:
                     cur = next_
-                elif (next_ := (cur[0] + 1, next_y)) not in data:
+                elif (next_ := (cur[0] + 1, next_y)) not in cave:
                     cur = next_
                 else:  # stops here
                     at_rest = True
-        data[cur] = SAND
+        cave[cur] = SAND
         count += 1
     return count
 
