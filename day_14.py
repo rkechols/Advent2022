@@ -52,8 +52,7 @@ class Cave:
         ]
         for (x, y), val in self.data.items():
             canvas[y - min_y][x - min_x] = val
-        for row in canvas:
-            print("".join(row))
+        print("\n".join("".join(row) for row in canvas))
 
     def lowest_rock(self) -> int:
         return max(
@@ -111,12 +110,15 @@ def main(cave: Cave, *, floor_terminates) -> int:
     count = 0
     lowest = cave.lowest_rock()
     floor = lowest + 2
+    path = [START]
     while cave.loc_is_free(START):
-        cur = Sand(START)
+        cur = Sand(path[-1])
         while cur.fall(cave, floor):
+            path.append(cur.loc)
             if floor_terminates and cur.y > lowest:
                 # it went below lowest rock; next move would hit the floor
                 return count
+        path.pop()  # next sand starts where this one just came from
         cave[cur.loc] = SAND
         count += 1
     return count

@@ -1,3 +1,5 @@
+import java.util.ArrayDeque
+
 typealias Loc = Pair<Int, Int>
 
 val ROCK = '#'
@@ -37,12 +39,7 @@ class Cave {
             val (x, y) = loc
             canvas[y - min_y][x - min_x] = value
         }
-        for (row in canvas) {
-            for (c in row) {
-                print(c)
-            }
-            println()
-        }
+        println(canvas.map{ it.joinToString("") }.joinToString("\n"))
     }
 
     fun lowest_rock(): Int {
@@ -119,14 +116,17 @@ fun solve(cave: Cave, floor_terminates: Boolean): Int {
     var count = 0
     val lowest = cave.lowest_rock()
     val floor = lowest + 2
+    val path = ArrayDeque<Loc>(listOf(START))  // stack
     while (cave.loc_is_free(START)) {
-        val cur = Sand(START)
+        val cur = Sand(path.peek())
         while (cur.fall(cave, floor)) {
+            path.push(cur.loc)
             if (floor_terminates && cur.y > lowest) {
                 // it went below lowest rock; next move would hit the floor
                 return count
             }
         }
+        path.pop()  // next sand starts where this one just came from
         cave[cur.loc] = SAND
         count++
     }
