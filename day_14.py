@@ -1,6 +1,6 @@
 import copy
 from pathlib import Path
-from typing import Dict, List, Literal, Optional, Tuple
+from typing import Dict, List, Literal, Tuple
 
 from constants import INPUTS_DIR, UTF_8
 
