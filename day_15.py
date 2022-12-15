@@ -39,15 +39,17 @@ def main1(data: List[Tuple[int, int, int, int]]) -> int:
     all_sensors = {(sx, sy) for sx, sy, _, _ in data}
     all_beacons = {(bx, by) for _, _, bx, by in data}
     all_known = all_sensors | all_beacons
-    x_nopes = set()
+    x_vals_no_beacon = set()
     for sx, sy, bx, by in data:
         s_to_b = manhattan((sx, sy), (bx, by))
         for x_shift in range(1 + s_to_b - abs(PART_1_TARGET_Y - sy)):
             for shift_direction in (-1, 1):
                 x = sx + shift_direction * x_shift
-                if (x, PART_1_TARGET_Y) not in all_known:
-                    x_nopes.add(x)
-    return len(x_nopes)
+                x_vals_no_beacon.add(x)
+    for (x, y) in all_known:
+        if y == PART_1_TARGET_Y:
+            x_vals_no_beacon.discard(x)
+    return len(x_vals_no_beacon)
 
 
 def main2(data: List[Tuple[int, int, int, int]]) -> int:
