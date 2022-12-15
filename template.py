@@ -16,3 +16,5 @@ if __name__ == "__main__":
         lines_ = [line_.strip() for line_ in f.readlines()]
     ans = main(lines_)
     print("part 1:", ans)
+    # ans = main2(lines_)
+    # print("part 2:", ans)
