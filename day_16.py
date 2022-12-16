@@ -1,6 +1,6 @@
 import copy
-import random
 import heapq
+import random
 import re
 from pathlib import Path
 from typing import List, Dict, Set, Tuple, Optional
@@ -47,20 +47,19 @@ def greedy(flows: Dict[str, int], adj: Dict[str, Set[str]]) -> int:
 
 
 class PartialSolution:
-    __slots__ = "cur", "timer", "flows", "adj", "opened", "_score"
+    __slots__ = "cur", "timer", "flows", "adj", "opened", "unopened", "_score"
 
     def __init__(self, *, cur: str, timer: int,
-                 flows: Dict[str, int], adj: Dict[str, Set[str]], opened: Dict[str, int]):
+                 flows: Dict[str, int], adj: Dict[str, Set[str]],
+                 opened: Dict[str, int], unopened: Set[str]):
         self.cur = cur
         self.timer = timer
         self.flows = flows
         self.adj = adj
         self.opened = opened
+        self.unopened = unopened
         # late init:
         self._score: Optional[int] = None
-
-    def unopened(self) -> Set[str]:
-        return set(self.flows.keys()) - set(self.opened.keys())
 
     def score(self) -> int:
         return sum(
@@ -73,7 +72,7 @@ class PartialSolution:
             so_far = self.score()
             sorted_remaining_flows = sorted(
                 flow
-                for valve in self.unopened()
+                for valve in self.unopened
                 if (flow := self.flows[valve]) > 0
             )
             shift = -1 if self.can_open() else 0
@@ -93,7 +92,7 @@ class PartialSolution:
     def is_complete(self) -> bool:
         return self.timer == 0 or all(
             self.flows[valve] == 0
-            for valve in self.unopened()
+            for valve in self.unopened
         )
 
     def clone(self) -> 'PartialSolution':
@@ -103,6 +102,7 @@ class PartialSolution:
             flows=self.flows,
             adj=self.adj,
             opened=copy.copy(self.opened),
+            unopened=copy.copy(self.unopened),
         )
 
     def children(self) -> List['PartialSolution']:
@@ -127,49 +127,48 @@ class PartialSolution:
             raise ValueError(f"try to open {self.cur}, which is already open")
         self.timer -= 1
         self.opened[self.cur] = self.timer
+        self.unopened.remove(self.cur)
         self._score = None
 
     def move(self, dest: str):
         self.timer -= 1
         self.cur = dest
-        self._score = None
+        # self._score = None
 
 
 class HeapElem:
-    __slots__ = "val",
+    __slots__ = "val", "score"
 
     def __init__(self, val: PartialSolution):
         self.val = val
+        self.score = val.score_heap()
 
     def __lt__(self, other: 'HeapElem') -> bool:
-        return self.val.score_heap() < other.val.score_heap()
+        return self.score < other.score
 
-    def __gt__(self, other: 'HeapElem') -> bool:
-        return self.val.score_heap() > other.val.score_heap()
-
-    def __eq__(self, other: 'HeapElem') -> bool:
-        return self.val.score_heap() == other.val.score_heap()
+    # def __gt__(self, other: 'HeapElem') -> bool:
+    #     return self.score > other.score
+    #
+    # def __eq__(self, other: 'HeapElem') -> bool:
+    #     return self.score == other.score
 
 
 def main(flows: Dict[str, int], adj: Dict[str, Set[str]]) -> int:
     best_score = greedy(flows, adj)
     print("greedy score:", best_score)
-    # best = None
-    # for seed in range(200):
-    #     best_score = greedy(flows, adj)
-    #     if best is None or best_score > best[0]:
-    #         best = best_score, seed
-    # print("greedy score:", best)
-    # return 0
     heap = [HeapElem(PartialSolution(
         cur=START,
         timer=TIME_LIMIT,
         flows=flows,
         adj=adj,
         opened={},
+        unopened=set(flows.keys()),
     ))]
     while len(heap) > 0:
         state = heapq.heappop(heap).val
+        score = state.score_hypothetical()
+        if score <= best_score:
+            continue
         for possible_child in state.children():
             if possible_child.is_complete():
                 score = possible_child.score()
