@@ -33,6 +33,10 @@ def rot_counter_clockwise(d: Direction) -> Direction:
     return Direction((d - 1) % 4)
 
 
+def score_position(row: int, col: int, d: Direction) -> int:
+    return (1000 * (row + 1)) + (4 * (col + 1)) + d
+
+
 def main(maze: List[str], instructions: List[str]) -> int:
     row = 0
     col = maze[row].index(OPEN)
@@ -99,7 +103,7 @@ def main(maze: List[str], instructions: List[str]) -> int:
                     break  # no more moves in this direction
                 else:
                     raise ValueError(f"expected open or wall, but found {repr(maze[next_row][next_col])}")
-    return (1000 * (row + 1)) + (4 * (col + 1)) + d
+    return score_position(row, col, d)
 
 
 class CubeMaze:
@@ -199,7 +203,7 @@ def main2(maze: List[str], instructions: List[str]) -> int:
                     break  # no more moves in this direction
                 else:
                     raise ValueError(f"expected open or wall, but found {repr(maze[next_row][next_col])}")
-    return (1000 * (row + 1)) + (4 * (col + 1)) + d
+    return score_position(row, col, d)
 
 
 if __name__ == "__main__":
