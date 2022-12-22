@@ -1,7 +1,6 @@
 from collections import deque
-from itertools import product as cartesian_product
 from pathlib import Path
-from typing import Iterable, List, Optional, Set, Tuple
+from typing import Iterable, List, Set, Tuple
 
 import numpy as np
 
@@ -13,6 +12,7 @@ INPUT_PATH = Path(INPUTS_DIR) / "day-18.txt"
 
 Point = Tuple[int, int, int]
 DIM = 3
+ORIGIN = (0, 0, 0)
 
 
 def parse(lines: List[str]) -> Set[Point]:
@@ -43,37 +43,6 @@ def main(blob: Set[Point]) -> int:
     return open_faces
 
 
-def internal_bfs(start: Point, visited: np.ndarray) -> Optional[Set[Point]]:
-    q = deque([start])
-    newly_visited = set()
-    hit_boundary = False
-    while len(q) > 0:
-        point = q.popleft()
-        visited[point] = True
-        newly_visited.add(point)
-        for neighbor in get_neighbors(point):
-            if neighbor in q:  # don't re-list points we're already planning on visiting
-                continue
-            if any(val < 0 or val >= visited.shape[i] for i, val in enumerate(neighbor)):
-                hit_boundary = True
-                continue  # don't go off the grid
-            if visited[neighbor]:
-                continue  # don't go to points we don't care about
-            # new
-            q.append(neighbor)
-    return newly_visited if not hit_boundary else None
-
-
-def find_internal_points(arr: np.ndarray) -> Set[Point]:
-    visited = arr.copy()
-    internal_points: Set[Point] = set()
-    for search_start in cartesian_product(*(range(d) for d in visited.shape)):
-        if not visited[search_start]:
-            if (new_internal_points := internal_bfs(search_start, visited)) is not None:
-                internal_points.update(new_internal_points)
-    return internal_points
-
-
 def main2(blob: Set[Point], n_faces_open: int) -> int:
     # put the blob points into an array
     shift = tuple(
@@ -81,24 +50,37 @@ def main2(blob: Set[Point], n_faces_open: int) -> int:
         for i in range(DIM)
     )
     blob = {
-        tuple(p - s for p, s in zip(point, shift))
+        # add 1 in each dim for padding
+        tuple(1 + p - s for p, s in zip(point, shift))
         for point in blob
     }
     arr_shape = tuple(
-        1 + max(point[i] for point in blob)
+        # add padding on the top end too
+        2 + max(point[i] for point in blob)
         for i in range(DIM)
     )
-    arr = np.zeros(arr_shape, dtype=bool)
+    visited = np.zeros(arr_shape, dtype=bool)
     for point in blob:
-        arr[point] = True
-    # find where an internal point shares a face with a blob point
-    internal_points = find_internal_points(arr)
-    n_faces_internal = 0
-    for point in internal_points:
+        visited[point] = True
+    # find where an external point shares a face with a blob point
+    n_faces_external = 0
+    q = deque([ORIGIN])
+    while len(q) > 0:
+        point = q.popleft()
+        visited[point] = True
         for neighbor in get_neighbors(point):
             if neighbor in blob:
-                n_faces_internal += 1
-    return n_faces_open - n_faces_internal
+                n_faces_external += 1
+                continue  # won't be visitable
+            if any(val < 0 or val >= visited.shape[i] for i, val in enumerate(neighbor)):
+                continue  # don't go off the grid
+            if visited[neighbor]:
+                continue  # don't go to points already checked
+            if neighbor in q:  # don't re-list points we're already planning on visiting
+                continue
+            # new
+            q.append(neighbor)
+    return n_faces_external
 
 
 if __name__ == "__main__":
