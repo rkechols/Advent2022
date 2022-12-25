@@ -1,10 +1,9 @@
 import copy
+import math
 import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Set, Tuple
-
-from tqdm import tqdm
 
 from constants import INPUTS_DIR, UTF_8
 
@@ -12,8 +11,6 @@ INPUT_PATH = Path(INPUTS_DIR) / "day-19.txt"
 # INPUT_PATH = Path(INPUTS_DIR) / "example.txt"
 
 INT_RE = re.compile(r"\d+")
-
-N_MINUTES = 24
 
 
 @dataclass(frozen=True)
@@ -127,11 +124,11 @@ class Mine:
                 raise ValueError(f"unexpected bot_type: {bot_type}")
 
 
-def get_max_geodes(blueprint: Blueprint) -> int:
+def get_max_geodes(blueprint: Blueprint, *, n_minutes: int) -> int:
     start_state = Mine(blueprint)
     mines = [start_state]
     states_seen = {start_state.to_tuple()}
-    for cur_minute in range(1, N_MINUTES + 1):
+    for cur_minute in range(1, n_minutes + 1):
         mines_new = []
         states_seen_new = set()
         for mine in mines:
@@ -153,19 +150,27 @@ def get_max_geodes(blueprint: Blueprint) -> int:
     return max(mine.n_geo for mine in mines)
 
 
-def main(blueprints: List[Blueprint]) -> int:
+def main1(blueprints: List[Blueprint], *, n_minutes: int) -> int:
     total = 0
-    for blueprint in tqdm(blueprints):
-        max_geodes = get_max_geodes(blueprint)
+    for blueprint in blueprints:
+        max_geodes = get_max_geodes(blueprint, n_minutes=n_minutes)
         total += max_geodes * blueprint.label
     return total
+
+
+def main2(blueprints: List[Blueprint], *, n_minutes: int) -> int:
+    values = []
+    for blueprint in blueprints:
+        max_geodes = get_max_geodes(blueprint, n_minutes=n_minutes)
+        values.append(max_geodes)
+    return math.prod(values)
 
 
 if __name__ == "__main__":
     with open(INPUT_PATH, "r", encoding=UTF_8) as f:
         lines_ = [line_.strip() for line_ in f.readlines()]
     blueprints_ = parse(lines_)
-    ans = main(blueprints_)
+    ans = main1(blueprints_, n_minutes=24)
     print("part 1:", ans)
-    # ans = main2(lines_)
-    # print("part 2:", ans)
+    ans = main2(blueprints_[:3], n_minutes=32)
+    print("part 2:", ans)
