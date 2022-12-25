@@ -2,14 +2,14 @@ import copy
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Set
+from typing import List, Optional, Set, Tuple
 
 from tqdm import tqdm
 
 from constants import INPUTS_DIR, UTF_8
 
-# INPUT_PATH = Path(INPUTS_DIR) / "day-19.txt"
-INPUT_PATH = Path(INPUTS_DIR) / "example.txt"
+INPUT_PATH = Path(INPUTS_DIR) / "day-19.txt"
+# INPUT_PATH = Path(INPUTS_DIR) / "example.txt"
 
 INT_RE = re.compile(r"\d+")
 
@@ -65,6 +65,9 @@ class Mine:
         self.n_obs = 0
         self.n_geo = 0
 
+    def to_tuple(self) -> Tuple[int, int, int, int]:
+        return self.n_ore_bots, self.n_clay_bots, self.n_obs_bots, self.n_geo_bots
+
     def collect(self):
         self.n_ore += self.n_ore_bots
         self.n_clay += self.n_clay_bots
@@ -90,17 +93,6 @@ class Mine:
         ):
             options.add("ore")
         return options
-
-    def build_options_greedy(self) -> Optional[str]:
-        if self.n_ore >= self.blueprint.geo_bot_ore and self.n_obs >= self.blueprint.geo_bot_obs:
-            return "geo"
-        if self.n_ore >= self.blueprint.obs_bot_ore and self.n_clay >= self.blueprint.obs_bot_clay:
-            return "obs"
-        if self.n_ore >= self.blueprint.clay_bot_ore:
-            return "clay"
-        if self.n_ore >= self.blueprint.ore_bot_ore:
-            return "ore"
-        return None
 
     def build_spend(self, bot_type: Optional[str]):
         match bot_type:
@@ -134,44 +126,14 @@ class Mine:
             case _:
                 raise ValueError(f"unexpected bot_type: {bot_type}")
 
-    def n_geodes_hypothetical(self, n_minutes_remaining: int) -> int:
-        n_geo_hyp = self.n_geo
-        n_geo_bots_hyp = self.n_geo_bots
-        has_clay_bot = self.n_clay_bots > 0
-        has_obs_bot = self.n_obs_bots > 0
-        wait = False
-        for _ in range(n_minutes_remaining):
-            if wait:
-                wait = False
-                continue
-            if not has_clay_bot:
-                has_clay_bot = True
-                wait = True
-                continue
-            if not has_obs_bot:
-                has_obs_bot = True
-                wait = True
-                continue
-            n_geo_hyp += n_geo_bots_hyp
-            n_geo_bots_hyp += 1
-        return n_geo_hyp
-
-
-def get_max_geodes_greedy(blueprint: Blueprint) -> int:
-    mine = Mine(blueprint)
-    for cur_minute in range(1, N_MINUTES + 1):
-        to_build = mine.build_options_greedy()
-        mine.build_spend(to_build)
-        mine.collect()
-        mine.build_finish(to_build)
-    return mine.n_geo
-
 
 def get_max_geodes(blueprint: Blueprint) -> int:
-    max_actual_geo = get_max_geodes_greedy(blueprint)
-    mines = [Mine(blueprint)]
+    start_state = Mine(blueprint)
+    mines = [start_state]
+    states_seen = {start_state.to_tuple()}
     for cur_minute in range(1, N_MINUTES + 1):
         mines_new = []
+        states_seen_new = set()
         for mine in mines:
             options = mine.build_options()
             for to_build in options:
@@ -179,11 +141,15 @@ def get_max_geodes(blueprint: Blueprint) -> int:
                 mine_option.build_spend(to_build)
                 mine_option.collect()
                 mine_option.build_finish(to_build)
-                if mine_option.n_geodes_hypothetical(N_MINUTES - cur_minute) >= max_actual_geo:
-                    # filter mines where it's impossible to catch up
+                mine_tup = mine_option.to_tuple()
+                # skip ones where we build a new bot when we could've done so earlier
+                if to_build is None or mine_tup not in states_seen:
                     mines_new.append(mine_option)
-        max_actual_geo = max(max_actual_geo, max(mine.n_geo for mine in mines_new))
+                    states_seen_new.add(mine_tup)
+        if len(mines_new) == 0:
+            raise RuntimeError("ALGORITHM ERROR: no options")
         mines = mines_new
+        states_seen.update(states_seen_new)
     return max(mine.n_geo for mine in mines)
 
 
