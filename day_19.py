@@ -8,8 +8,8 @@ from tqdm import tqdm
 
 from constants import INPUTS_DIR, UTF_8
 
-INPUT_PATH = Path(INPUTS_DIR) / "day-19.txt"
-# INPUT_PATH = Path(INPUTS_DIR) / "example.txt"
+# INPUT_PATH = Path(INPUTS_DIR) / "day-19.txt"
+INPUT_PATH = Path(INPUTS_DIR) / "example.txt"
 
 INT_RE = re.compile(r"\d+")
 
@@ -75,12 +75,19 @@ class Mine:
         # check if we can build each type of bot
         options = {None}
         if self.n_ore >= self.blueprint.geo_bot_ore and self.n_obs >= self.blueprint.geo_bot_obs:
-            return {"geo"}
-        if self.n_ore >= self.blueprint.obs_bot_ore and self.n_clay >= self.blueprint.obs_bot_clay:
+            return {"geo"}  # force geo if we can do it
+        if self.n_ore >= self.blueprint.obs_bot_ore and self.n_clay >= self.blueprint.obs_bot_clay \
+                and self.n_obs_bots < self.blueprint.geo_bot_obs:
             options.add("obs")
-        if self.n_ore >= self.blueprint.clay_bot_ore:
+        if self.n_ore >= self.blueprint.clay_bot_ore \
+                and self.n_clay_bots < self.blueprint.obs_bot_clay:
             options.add("clay")
-        if self.n_ore >= self.blueprint.ore_bot_ore:
+        if self.n_ore >= self.blueprint.ore_bot_ore and self.n_ore_bots < max(
+                self.blueprint.ore_bot_ore,
+                self.blueprint.clay_bot_ore,
+                self.blueprint.obs_bot_ore,
+                self.blueprint.geo_bot_ore,
+        ):
             options.add("ore")
         return options
 
